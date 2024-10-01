@@ -73,7 +73,7 @@ This project is containerized using **Docker** and follows Object Oriented Progr
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/goodreads-clone.git
+   git clone https://github.com/rahathossain690/goodreads-clone.git
    cd goodreads-clone
    ```
 
