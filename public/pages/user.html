@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <title>User Profile</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center">User Profile</h2>
+        <div id="userInfo" class="text-center mb-4">
+            <h5 id="username"></h5>
+            <p id="email"></p>
+            <button id="followBtn" class="btn btn-secondary">Follow</button>
+            <a class="btn btn-primary" href="/users">View all other users</a>
+        </div>
+    </div>
+
+    <div class="container mt-4"></div>
+        <h1 class="text-center">Reviews</h1>
+        <div id="review" class="mt-4"></div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('id'); // Get userId from query parameters
+
+            if (!userId) {
+                $('#userInfo').html('<p class="text-danger">User ID is missing!</p>');
+                return;
+            }
+
+            fetchUserData(userId);
+
+            const profile = JSON.parse(localStorage.getItem('profile'));
+            if (userId == profile.id) {
+                $('#followBtn').hide()
+            } else {
+                checkIfFollowing(userId);
+            }
+
+            // Show reviews button click handler
+            $('#showReviewsBtn').click(function() {
+                window.location.href = `/?reviewBy=${userId}`;
+            });
+
+            // Follow/unfollow button click handler
+            $('#followBtn').click(function() {
+                toggleFollow(userId);
+            });
+            
+            populateReviews(userId);
+        });
+
+        // Fetch user data
+        function fetchUserData(userId) {
+            $.ajax({
+                url: `/api/auth/user?id=${userId}`,
+                method: 'GET',
+                success: function (user) {
+                    $('#username').text(user.username);
+                    $('#email').text(user.email);
+                },
+                error: function () {
+                    $('#userInfo').html('<p class="text-danger">Error fetching user data.</p>');
+                }
+            });
+        }
+
+        // Check if the current user is following the profile
+        function checkIfFollowing(userId) {
+            const token = localStorage.getItem('token'); // Retrieve token from localStorage
+            const profile = JSON.parse(localStorage.getItem('profile')); // Current logged-in user's profile
+
+            if (!token || !profile || !profile.id) {
+                $('#followBtn').hide(); // Hide the follow button if the user is not logged in
+                return;
+            }
+
+            $.ajax({
+                url: `/api/follow/following/${profile.id}`,
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}` // Add token to headers
+                },
+                success: function (followingList) {
+                    const isFollowing = followingList.some(user => user.id === parseInt(userId));
+                    updateFollowButton(isFollowing);
+                },
+                error: function () {
+                    $('#followBtn').html('<p class="text-danger">Error checking follow status.</p>');
+                }
+            });
+        }
+
+        // Update the follow/unfollow button
+        function updateFollowButton(isFollowing) {
+            if (isFollowing) {
+                $('#followBtn').text('Unfollow');
+                $('#followBtn').removeClass('btn-secondary').addClass('btn-danger');
+            } else {
+                $('#followBtn').text('Follow');
+                $('#followBtn').removeClass('btn-danger').addClass('btn-secondary');
+            }
+        }
+
+        // Toggle follow/unfollow for the user
+        function toggleFollow(userId) {
+            const token = localStorage.getItem('token'); // Retrieve token from localStorage
+            const profile = JSON.parse(localStorage.getItem('profile')); // Current logged-in user's profile
+
+            if (!token || !profile || !profile.id) {
+                alert('Please log in to follow/unfollow users.');
+                return;
+            }
+
+            const followBtn = $('#followBtn');
+            const isFollowing = followBtn.text() === 'Unfollow';
+
+            if (isFollowing) {
+                // Unfollow the user
+                $.ajax({
+                    url: `/api/follow`,
+                    method: 'DELETE',
+                    data: JSON.stringify({
+                        followedId: userId
+                    }),
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Add token to headers
+                        'Content-Type': 'application/json'
+                    },
+                    success: function () {
+                        updateFollowButton(false);
+                    },
+                    error: function () {
+                        alert('Error unfollowing the user.');
+                    }
+                });
+            } else {
+                // Follow the user
+                $.ajax({
+                    url: `/api/follow`,
+                    method: 'POST',
+                    data: JSON.stringify({
+                        followedId: userId
+                    }),
+                    contentType: 'application/json',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Add token to headers
+                        'Content-Type': 'application/json'
+                    },
+                    success: function () {
+                        updateFollowButton(true);
+                    },
+                    error: function () {
+                        alert('Error following the user.');
+                    }
+                });
+            }
+        }
+
+        function populateReviews(userId){
+            const token = localStorage.getItem('token');
+            
+            $.ajax({
+                url: `/api/review?userId=${userId}`, // API to get all users
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,  // Authorization header with token
+                },
+                success: function(dummyData) {
+                    console.log(dummyData)
+                    dummyData
+                    .map(each => {
+                        each['user'] = each.User 
+                        each['book'] = each.Book
+
+                        return each;
+                    }).forEach(review => {
+                        // Create a card for each review
+                        const card = document.createElement('div');
+                        card.classList.add('card', 'mb-3');
+
+                        const cardBody = document.createElement('div');
+                        cardBody.classList.add('card-body');
+
+                        // Add book information
+                        const bookInfo = `
+                            <h5 class="card-title">${review.book.title}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">by ${review.book.author}</h6>
+                            <p><strong>Genre:</strong> ${review.book.genre}</p>
+                            <p><strong>Published Year:</strong> ${review.book.publishedYear}</p>
+                        `;
+                        cardBody.innerHTML += bookInfo;
+
+                        // Add review text and reviewer info
+                        const reviewText = `
+                            <b>Rating: ${review.rating}</b>
+                            <p class="card-text">
+                                ${review.reviewText}
+                            </p>
+                            <footer class="blockquote-footer">Review by <cite title="Source Title">${review.user.username} (${review.user.email})</cite></footer>
+                        `;
+                        cardBody.innerHTML += reviewText;
+
+                        // Add "Show More" button
+                        const showMoreBtn = document.createElement('a');
+                        showMoreBtn.href = `/review?id=${review.id}`;
+                        showMoreBtn.classList.add('btn', 'btn-primary');
+                        showMoreBtn.innerText = 'Show More';
+
+                        cardBody.appendChild(showMoreBtn); // Append button to card body
+                        card.appendChild(cardBody);        // Append card body to card
+                        document.getElementById('review').appendChild(card); // Append card to review container
+                    });
+                },
+                error: function() {
+                    $('#review').innerText = 'Error'
+                }
+            });
+        }
+    </script>
+</body>
+</html>

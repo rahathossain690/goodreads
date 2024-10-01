@@ -1,0 +1,10 @@
+# Ignore SQLite database
+database.sqlite
+
+# Node.js dependencies
+node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
